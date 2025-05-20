@@ -1,16 +1,19 @@
+#!/usr/bin/env python3
+
 import os
 import re
 import javalang
+import sys
 from openai import OpenAI
 from pygments import highlight
 from pygments.lexers import JavaLexer
 from pygments.formatters import TerminalFormatter
 from dotenv import load_dotenv
+from pathlib import Path
 
-load_dotenv()
+script_dir = Path(__file__).resolve().parent
+load_dotenv(dotenv_path=script_dir / '.env')
 client = OpenAI()
-
-# Set your OpenAI API key
 
 def read_java_file(file_path):
     with open(file_path, 'r', encoding='utf-8') as file:
@@ -107,9 +110,9 @@ JavaDoc:"""
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": """You are a Java documentation assistant, use proper JavaDoc notation ({@link}, etc). Thrown ResponseStatusException (HTTPS errors) are seen as a return type, use this format to bypass this limitation (custom returns):
+                {"role": "system", "content": """You are a Java documentation assistant, use proper JavaDoc notation ({@link}, etc). Thrown ResponseStatusException (HTTPS errors) are seen as a return type, use this format to bypass this limitation (custom returns) (this is an example):
 /**
-* <description>
+* <detailed description>
 * 
 * <br>
 * <br>
@@ -122,7 +125,18 @@ JavaDoc:"""
 * 
 * @return {@link HttpStatus#ACCEPTED} : {@link QuestionResponse}
 */
-Do not specify if it returns a Void type. Put the javadoc elements in this order: <description> <custom returns> <params> <returns> <throws> <return>. Only specify http errors in the <custom returns> section, for regular @returns, use standard JavaDoc."""},
+
+If no Http error is returned, use this format:
+/**
+* <detailed description>
+*
+* <params, if present>
+* @return {@link HttpStatus#ACCEPTED} : {@link <type>}
+*/
+
+Do not specify if it returns a Void type.
+Put the javadoc elements in this order: <description> <custom returns> <params> <returns> <throws> <return>.
+Only specify http errors in the <custom returns> section, for regular @returns, use standard JavaDoc."""},
                 {"role": "user", "content": prompt}
             ],
             temperature=0.5,
@@ -189,7 +203,11 @@ def extract_full_method_code(java_code_lines, start_line):
 
 
 def main():
-    java_file_path = input("Enter the path to the .java file: ").strip()
+    if len(sys.argv) > 1:
+        java_file_path = sys.argv[1]
+    else:
+        java_file_path = input("Enter the path to the .java file: ").strip()
+
     if not os.path.isfile(java_file_path):
         print("File not found.")
         return
